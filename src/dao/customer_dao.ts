@@ -9,7 +9,7 @@ function bootstrap(){
 
 
 function customerExists(customerCode: string){
-    const preparedStatement = connection.prepare("select count(id) from customer where customer_code = ?")
+    const preparedStatement = connection.prepare("select id from customer where customer_code = ? limit 1")
     const result = preparedStatement.all(customerCode);
     return result.length > 0;
 }
