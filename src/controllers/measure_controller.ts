@@ -3,7 +3,7 @@ import { Gemini, GeminiFileManager } from '..';
 import fs from 'fs';
 import customer_dao from '../dao/customer_dao';
 import measure_dao from '../dao/measure_dao';
-import { ConfirmData, ErrorCode, ErrorMessage, UploadData } from '../type';
+import { ConfirmData, ErrorCode, ErrorMessage, MeasureType, UploadData } from '../type';
 
 
 function uploadDataValidador(data: any): [string, Boolean] {
@@ -42,7 +42,7 @@ class MeasureController {
 
             if (measure_dao.measureExistsByDatetime(uploadData.measure_datetime)) {
                 res.status(409).send(<ErrorMessage>{
-                    error_code: ErrorCode.DOUBLE_REPORT,
+                    error_code: 'DOUBLE_REPORT',
                     error_description: "Leitura do mês já realizada"
                 })
                 return;
@@ -99,7 +99,7 @@ class MeasureController {
             });
         } else {
             res.status(400).send(<ErrorMessage>{
-                error_code: ErrorCode.INVALID_DATA,
+                error_code: 'INVALID_DATA',
                 error_description: msg,
             });
         }
@@ -112,7 +112,7 @@ class MeasureController {
             const confirmData = data as ConfirmData;
             if(!measure_dao.measureExistsByUUID(confirmData.measure_uuid)){
                 res.status(404).send(<ErrorMessage>{
-                    error_code: ErrorCode.MEASURE_NOT_FOUND,
+                    error_code: 'MEASURE_NOT_FOUND',
                     error_description: "Leitura não encontrada"
                 })
                 return;
@@ -120,7 +120,7 @@ class MeasureController {
 
             if(measure_dao.isMeasureConfirmed(confirmData.measure_uuid)){
                 res.status(409).send(<ErrorMessage>{
-                    error_code: ErrorCode.CONFIRMATION_DUPLICATE,
+                    error_code: 'CONFIRMATION_DUPLICATE',
                     error_description: "O valor dessa leitura já foi confirmado"
                 })
 
@@ -134,7 +134,7 @@ class MeasureController {
             }
 
         } else {
-            res.status(400).send({
+            res.status(400).send(<ErrorMessage>{
                 error_code: "INVALID_DATA",
                 error_description: msg,
             });
@@ -142,7 +142,34 @@ class MeasureController {
     }
 
     private async listMeasuresByCustomer(req: Req, res: Res): Promise<void> {
-        //TODO (get)
+        const measureType = req.query.measure_type;
+        const customerCode = req.params.customer_code;
+        if(measureType != undefined){
+            if(!["WATER","GAS"].includes(<string>measureType )) {
+                res.status(400).send(<ErrorMessage>{
+                    error_code: "INVALID_TYPE",
+                    error_description: "Tipo de medição não permitida",
+                });
+                return;
+            }
+        }
+
+        const measures: Array<any> = measure_dao.getMeasuresForCustomer(customerCode,<string | undefined> measureType)
+        
+        if(measures.length == 0){
+            res.status(404).send(<ErrorMessage>{
+                error_code: "MEASURES_NOT_FOUND",
+                error_description: "Nenhuma leitura encontrada",
+            });
+            return;
+        }
+
+        measures.map((measure) => measure.has_confirmed = measure.has_confirmed == 1 ? true : false);
+
+        res.send({
+            customer_code: customerCode,
+            measures: measures
+        })
     }
 
     public map(express: Express): void {
@@ -150,7 +177,7 @@ class MeasureController {
         measure_dao.bootstrap();
         express.post("/upload", this.upload)
         express.patch("/confirm", this.confirm);
-        express.get("/:userId/list", this.listMeasuresByCustomer)
+        express.get("/:customer_code/list", this.listMeasuresByCustomer)
     }
 }
 

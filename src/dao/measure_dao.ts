@@ -1,9 +1,9 @@
 import { RunResult } from "better-sqlite3";
 import { connection } from "..";
 import { ConfirmData, MeasureData } from "../type";
-import customer_dao from  "./customer_dao";
+import customer_dao from "./customer_dao";
 
-function bootstrap(){
+function bootstrap() {
     connection.exec(`CREATE TABLE IF NOT EXISTS measures(
         id integer primary key,
         upload_name varchar(128) not null,
@@ -19,8 +19,8 @@ function bootstrap(){
     )`)
 }
 
-function addMeasure(data: MeasureData, customerCode: string){
-    if(!customer_dao.customerExists(customerCode)){
+function addMeasure(data: MeasureData, customerCode: string) {
+    if (!customer_dao.customerExists(customerCode)) {
         customer_dao.addCostumer(customerCode)
     }
 
@@ -34,32 +34,39 @@ function addMeasure(data: MeasureData, customerCode: string){
 function confirmReadingValue(data: ConfirmData) {
     const preparedStatement = connection.prepare("update measures set has_confirmed = 1, measure_value = ? where measure_uuid = ?")
     const result: RunResult = preparedStatement.run(data.confirmed_value, data.measure_uuid);
-    
+
     return result.changes == 1;
 }
 
 
-function getMeasuresForCustomer(customerCode: string){
-    const preparedStatement = connection.prepare("select m.image_url, date(m.measure_datetime), m.has_confirmed, m.measure_type, m.uuid from measures m inner join on customer c where c.customer_code = ?")
+function getMeasuresForCustomer(customerCode: string, type: string | undefined) {
 
-    return preparedStatement.get(customerCode);
+    const statement = "select m.image_url, m.measure_datetime, m.has_confirmed, m.measure_type, m.measure_uuid from measures m inner join customer c on c.customer_code = ?";
+
+    if (type == undefined) {
+        const preparedStatement = connection.prepare(statement);
+        return preparedStatement.all(customerCode);
+    }
+
+    const preparedStatement = connection.prepare("select m.image_url, m.measure_datetime, m.has_confirmed, m.measure_type, m.measure_uuid from measures m inner join customer c on c.customer_code = ? where m.measure_type = ?")
+    return preparedStatement.all(customerCode, type);
 }
 
-function isMeasureConfirmed(uuid: string){
+function isMeasureConfirmed(uuid: string) {
     const preparedStatement = connection.prepare("select has_confirmed from measures where measure_uuid = ? limit 1")
     const result = preparedStatement.all(uuid);
 
     return (<any>result[0]).has_confirmed == 1
 }
 
-function measureExistsByDatetime(datetime: Date): boolean{
+function measureExistsByDatetime(datetime: Date): boolean {
     const preparedStatement = connection.prepare("select id from measures where strftime('%m%Y',measure_datetime) = strftime('%m%Y', ?) limit 1")
     const result = preparedStatement.all(datetime.toISOString());
 
     return result.length > 0;
 }
 
-function measureExistsByUUID(uuid: string){
+function measureExistsByUUID(uuid: string) {
     const preparedStatement = connection.prepare("select id from measures where measure_uuid = ? limit 1")
     const result = preparedStatement.all(uuid);
 

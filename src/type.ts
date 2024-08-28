@@ -1,9 +1,10 @@
-enum ErrorCode {
-    INVALID_DATA,
-    MEASURE_NOT_FOUND,
-    CONFIRMATION_DUPLICATE,
-    DOUBLE_REPORT
-}
+type ErrorCode = 
+    "INVALID_DATA" |
+    "MEASURE_NOT_FOUND" |
+    "CONFIRMATION_DUPLICATE" |
+    "DOUBLE_REPORT" | 
+    "INVALID_TYPE" | 
+    "MEASURES_NOT_FOUND"
 
 type ErrorMessage = {
     error_code: ErrorCode;
@@ -11,11 +12,7 @@ type ErrorMessage = {
 }
 
 
-enum MeasureType {
-    WATER,
-    GAS
-}
-
+type MeasureType = "WATER" | "GAS";
 type UploadData = {
     image: string,
     customer_code: string,
